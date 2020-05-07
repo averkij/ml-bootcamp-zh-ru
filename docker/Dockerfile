@@ -1,0 +1,72 @@
+FROM ubuntu:16.04
+
+ENV py_version=3
+RUN test $py_version || exit 1
+
+RUN apt-get update && apt-get install -y --no-install-recommends software-properties-common && \
+    add-apt-repository ppa:deadsnakes/ppa -y && \
+    apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+        jq \
+        libsm6 \
+        libxext6 \
+        libxrender-dev \
+		git \
+        nginx && \
+    if [ $py_version -eq 3 ]; \
+       then apt-get install -y --no-install-recommends python3.6-dev \
+           && ln -s -f /usr/bin/python3.6 /usr/bin/python; \
+       else apt-get install -y --no-install-recommends python-dev; fi && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install pip
+RUN cd /tmp && \
+    curl -O https://bootstrap.pypa.io/get-pip.py && \
+    python get-pip.py 'pip<=18.1' && rm get-pip.py
+
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONIOENCODING=UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8
+
+RUN pip install torch==1.2.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
+
+RUN pip install --no-cache-dir \
+jieba==0.42.1 \
+certifi==2019.6.16 \
+chardet==3.0.4 \
+ConfigArgParse==1.2.2 \
+future==0.17.1 \
+idna==2.8 \
+nltk==3.4.5 \
+numpy==1.16.4 \
+requests==2.22.0 \
+sentencepiece==0.1.85 \
+six==1.12.0 \
+torchtext==0.5.0 \
+tqdm==4.41.0
+
+WORKDIR /
+RUN git clone https://github.com/OpenNMT/OpenNMT-py.git && cd OpenNMT-py 
+WORKDIR /OpenNMT-py
+
+RUN python setup.py install
+
+WORKDIR /
+
+COPY run.sh .
+COPY src32.code .
+COPY src52.code .
+COPY src32_open.code .
+COPY src_26_32.code .
+COPY src_20_32.code .
+COPY src_42_32.code .
+COPY src_open_26_32.code .
+COPY src_ted212_32.code .
+COPY src_ted217_32.code .
+COPY src_news_32.code .
+
+COPY apply_bpe.py .
+COPY ondatr-trans_step_180000_news250_32.pt .
+
+RUN mkdir -p /opt/results/
+
+ENTRYPOINT ["bash", "run.sh"] 
